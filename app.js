@@ -144,23 +144,23 @@ app.get("/user/me", checkToken, async (req, res) => {
     res.status(500).json({ msg: "Erro interno no servidor" });
   }
 });
-app.get("/user/me", checkToken, async (req, res) => {
+
+function checkToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ msg: 'Acesso negado!' });
+
   try {
-    const token = req.headers.authorization.split(" ")[1];
     const secret = process.env.SECRET;
     const decoded = jwt.verify(token, secret);
-    
-    const user = await User.findById(decoded.id).select("-password");
-    if (!user) {
-      return res.status(404).json({ msg: "Usuário não encontrado!" });
-    }
 
-    res.status(200).json({ user });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Erro interno no servidor" });
+    req.user = decoded; // ✅ adiciona o ID do usuário ao request
+    next();
+  } catch (erro) {
+    res.status(400).json({ msg: "Token inválido!" });
   }
-});
+}
 
 //credenciais
 const dbUser = process.env.DB_USER;
