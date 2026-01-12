@@ -127,6 +127,41 @@ app.post("/auth/login", async (req, res) => {
   }
 });
 
+app.get("/user/me", checkToken, async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(" ")[1];
+    const secret = process.env.SECRET;
+    const decoded = jwt.verify(token, secret);
+    
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ msg: "Usuário não encontrado!" });
+    }
+
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Erro interno no servidor" });
+  }
+});
+app.get("/user/me", checkToken, async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(" ")[1];
+    const secret = process.env.SECRET;
+    const decoded = jwt.verify(token, secret);
+    
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ msg: "Usuário não encontrado!" });
+    }
+
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Erro interno no servidor" });
+  }
+});
+
 //credenciais
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
