@@ -1,14 +1,18 @@
 {
   "name": "pinklife-server",
   "version": "1.0.0",
+  "description": "API Node.js com autenticação JWT",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js"
   },
+  "keywords": [],
+  "author": "Davi de Jesus Dias",
+  "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "bcrypt": "^6.0.0",
+    "bcrypt": "^5.1.1",
     "dotenv": "^17.2.3",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.3",
