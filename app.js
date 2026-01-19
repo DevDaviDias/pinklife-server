@@ -66,90 +66,67 @@ function checkToken(req,res,next){
 
 //Register
 app.post("/auth/register", async (req, res) => {
-  const { name, email, password, confirmpassword } = req.body || {};
+  // usa let para poder alterar depois
+  let { name, email, password, confirmpassword } = req.body || {};
+
+  // Limpa espaços extras
+  name = name?.trim();
+  email = email?.trim();
+  password = password?.trim();
+  confirmpassword = confirmpassword?.trim();
 
   //validações
-  if (!name) {
-    return res.status(422).json({ msg: "nome é obrigatório" });
-  }
-  if (!email) {
-    return res.status(422).json({ msg: "Email é obrigatório" });
-  }
-  if (!password) {
-    return res.status(422).json({ msg: "Senha é obrigatório" });
-  }
-  if (!confirmpassword) {
-    return res.status(422).json({ msg: "Senha é obrigatório" });
-  }
-  if (password !== confirmpassword) {
-    return res.status(422).json({ msg: "Senha não conferem" });
-  }
-  //verificar se usuario existe
-  const userExists = await User.findOne({ email: email });
+  if (!name) return res.status(422).json({ msg: "Nome é obrigatório" });
+  if (!email) return res.status(422).json({ msg: "Email é obrigatório" });
+  if (!password) return res.status(422).json({ msg: "Senha é obrigatório" });
+  if (!confirmpassword) return res.status(422).json({ msg: "Confirmação de senha é obrigatória" });
+  if (password !== confirmpassword) return res.status(422).json({ msg: "Senhas não conferem" });
 
-  if (userExists) {
-    return res.status(422).json({ msg: "Por favor ultlize putro email!" });
-  }
+  //verificar se usuario existe
+  const userExists = await User.findOne({ email });
+
+  if (userExists) return res.status(422).json({ msg: "Por favor utilize outro email!" });
 
   //create password
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash(password, salt);
 
   //create user
-  const user = new User({
-    name,
-    email,
-    password: passwordHash,
-  });
-
-  //login user
-  
+  const user = new User({ name, email, password: passwordHash });
 
   try {
     await user.save();
-    res.status(201).json({ msg: "Usuario criado com sucesso!" });
+    res.status(201).json({ msg: "Usuário criado com sucesso!" });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        msg: "Aconteceu um erro no servidor, tente novamnete mais tarde!",
-      });
+    res.status(500).json({ msg: "Aconteceu um erro no servidor, tente novamente mais tarde!" });
   }
 });
 
 app.post("/auth/login", async (req, res) => {
-    const { email, password } = req.body || {};
+  let { email, password } = req.body || {};
 
-    if (!email) {
-      return res.status(422).json({ msg: "Email é obrigatório" });
-    }
-    if (!password) {
-      return res.status(422).json({ msg: "Senha é obrigatório" });
-    }
-      const user = await User.findOne({ email: email });
+  email = email?.trim();
+  password = password?.trim();
 
-  if (!user) {
-    return res.status(422).json({ msg: "Usuario não encontrado!" });
+  if (!email) return res.status(422).json({ msg: "Email é obrigatório" });
+  if (!password) return res.status(422).json({ msg: "Senha é obrigatório" });
+
+  const user = await User.findOne({ email });
+  if (!user) return res.status(422).json({ msg: "Usuário não encontrado!" });
+
+  const checkPassword = await bcrypt.compare(password, user.password);
+  if (!checkPassword) return res.status(404).json({ msg: "Senha inválida" });
+
+  try {
+    const secret = process.env.SECRET;
+    const token = jwt.sign({ id: user._id }, secret);
+    res.status(200).json({ msg: "Autenticação realizada com sucesso!", token });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Aconteceu um erro no servidor, tente novamente mais tarde!" });
   }
-  //chef if password match
-  const checkPassword = await bcrypt.compare(password,user.password )
-  if(!checkPassword){
-    return res.status(404).json({ msg: "Senha é inválida" });
-  }
-try{
-  const secret = process.env.SECRET
-  const token = jwt.sign({id:user.id},
-    secret,
-  )
-res.status(200).json({msg: "Autenticação realizada com sucesso!", token})
-}catch(err){
-    console.log(error)
-    res.status(500)
-      .json({
-        msg: "Aconteceu um erro no servidor, tente novamnete mais tarde!",
-      });
-}
-  });
+});
+
 //credenciais
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
