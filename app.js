@@ -2,20 +2,30 @@ if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
 
-const cors = require('cors');
-app.use(cors());
+
+
 const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const cors = require('cors');
+
 const app = express();
+
+app.use(cors());
+
+app.use(express.json());
+
+
+const User = require("./models/User.js");
 
 const PORT = process.env.PORT || 3001;
 //config json response
-app.use(express.json());
+
+
 
 //Modules
-const User = require("./models/User.js");
+
 //open Route - public route
 app.get("/", (req, res) => {
   res.status(200).json({ msg: "Bem vinda a nossa Api" });
