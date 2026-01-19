@@ -1,13 +1,16 @@
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
+
+const cors = require('cors');
+app.use(cors());
 const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const app = express();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 //config json response
 app.use(express.json());
 
