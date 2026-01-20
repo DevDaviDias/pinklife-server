@@ -26,7 +26,7 @@ function checkToken(req, res, next) {
   try {
     const secret = process.env.SECRET;
     const decoded = jwt.verify(token, secret);
-    req.user = decoded; // ✅ Adiciona o ID (id) do usuário ao request
+    req.user = decoded; 
     next();
   } catch (erro) {
     res.status(400).json({ msg: "Token inválido!" });
@@ -38,12 +38,25 @@ app.get("/", (req, res) => {
   res.status(200).json({ msg: "Bem vinda a nossa Api" });
 });
 
+// --- ROTA NOVA: USER ME (Resolve o erro 404 do Axios) ---
+app.get("/user/me", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) return res.status(404).json({ msg: "Usuário não encontrado!" });
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ msg: "Erro ao buscar usuário" });
+  }
+});
+
 app.post("/auth/register", async (req, res) => {
   let { name, email, password, confirmpassword } = req.body || {};
   if (password !== confirmpassword) return res.status(422).json({ msg: "Senhas não conferem" });
 
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash(password, salt);
+  
+  // Garantimos que o usuário comece com um objeto progress vazio
   const user = new User({ name, email, password: passwordHash, progress: {} });
 
   try {
@@ -67,15 +80,15 @@ app.post("/auth/login", async (req, res) => {
   res.status(200).json({ token });
 });
 
-// --- ROTAS DE PROGRESSO (Para todas as páginas) ---
+// --- ROTAS DE PROGRESSO ---
 
-// SALVAR (Saúde, Alimentação, Treino, etc.)
+// SALVAR
 app.post("/user/progress", checkToken, async (req, res) => {
   const { module, data } = req.body; 
   const userId = req.user.id;
 
   try {
-    // Atualiza apenas a gaveta do módulo dentro do objeto 'progress'
+    // Usamos o [module] dinâmico para salvar em progress.agenda, progress.treino, etc.
     await User.findByIdAndUpdate(userId, {
       $set: { [`progress.${module}`]: data }
     });
@@ -89,6 +102,7 @@ app.post("/user/progress", checkToken, async (req, res) => {
 app.get("/user/progress", checkToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
+    // Retornamos exatamente o objeto progress para o Contexto ler
     res.status(200).json({ progress: user.progress || {} });
   } catch (error) {
     res.status(500).json({ msg: "Erro ao buscar dados" });
