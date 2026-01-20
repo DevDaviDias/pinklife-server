@@ -129,11 +129,9 @@ app.post("/auth/login", async (req, res) => {
 
 app.get("/user/me", checkToken, async (req, res) => {
   try {
-    const token = req.headers.authorization.split(" ")[1];
-    const secret = process.env.SECRET;
-    const decoded = jwt.verify(token, secret);
+    // O ID já vem do checkToken através do req.user.id
+    const user = await User.findById(req.user.id).select("-password");
     
-    const user = await User.findById(decoded.id).select("-password");
     if (!user) {
       return res.status(404).json({ msg: "Usuário não encontrado!" });
     }
@@ -144,6 +142,7 @@ app.get("/user/me", checkToken, async (req, res) => {
     res.status(500).json({ msg: "Erro interno no servidor" });
   }
 });
+
 
 function checkToken(req, res, next) {
   const authHeader = req.headers['authorization'];
