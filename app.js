@@ -143,6 +143,97 @@ app.post("/user/progress", checkToken, async (req, res) => {
   }
 });
 
+const materias = [];
+const historicoEstudos = [];
+
+// ---------- MATÉRIAS ----------
+
+// GET todas as matérias
+app.get("/estudos/materias", (req, res) => {
+  res.json(materias);
+});
+
+// POST criar matéria
+app.post("/estudos/materias", (req, res) => {
+  const { nome, metaHoras } = req.body;
+
+  if (!nome || !metaHoras) {
+    return res.status(400).json({ msg: "Dados inválidos" });
+  }
+
+  const novaMateria = {
+    id: crypto.randomUUID(),
+    nome,
+    metaHoras: Number(metaHoras),
+    horasEstudadas: 0,
+  };
+
+  materias.push(novaMateria);
+  res.status(201).json(novaMateria);
+});
+
+// DELETE matéria
+app.delete("/estudos/materias/:id", (req, res) => {
+  const { id } = req.params;
+
+  const index = materias.findIndex(m => m.id === id);
+  if (index === -1) {
+    return res.status(404).json({ msg: "Matéria não encontrada" });
+  }
+
+  materias.splice(index, 1);
+  res.json({ msg: "Matéria removida com sucesso" });
+});
+
+// ---------- HISTÓRICO ----------
+
+// GET histórico
+app.get("/estudos/historico", (req, res) => {
+  res.json(historicoEstudos);
+});
+
+// POST nova sessão de estudo
+app.post("/estudos/historico", (req, res) => {
+  const { materia, comentario, duracaoSegundos, data } = req.body;
+
+  if (!materia || !duracaoSegundos) {
+    return res.status(400).json({ msg: "Dados inválidos" });
+  }
+
+  const novaSessao = {
+    id: crypto.randomUUID(),
+    materia,
+    comentario: comentario || "",
+    duracaoSegundos: Number(duracaoSegundos),
+    data: data || new Date().toISOString(),
+  };
+
+  historicoEstudos.unshift(novaSessao);
+
+  // Atualiza horas estudadas da matéria
+  const materiaEncontrada = materias.find(m => m.nome === materia);
+  if (materiaEncontrada) {
+    materiaEncontrada.horasEstudadas += duracaoSegundos / 3600;
+  }
+
+  res.status(201).json(novaSessao);
+});
+
+// DELETE sessão do histórico
+app.delete("/estudos/historico/:id", (req, res) => {
+  const { id } = req.params;
+
+  const index = historicoEstudos.findIndex(h => h.id === id);
+  if (index === -1) {
+    return res.status(404).json({ msg: "Sessão não encontrada" });
+  }
+
+  historicoEstudos.splice(index, 1);
+  res.json({ msg: "Sessão removida com sucesso" });
+});
+
+
+
 const treinos = []; // lista global temporária
 // GET todos os treinos
 app.get("/treinos", (req, res) => {
