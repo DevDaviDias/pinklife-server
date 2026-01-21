@@ -109,6 +109,22 @@ app.get("/user/progress", checkToken, async (req, res) => {
   }
 });
 
+app.get("/user/me", checkToken, async (req, res) => {
+  try {
+   
+    const user = await User.findById(req.user.id).select("-_id -password -__v"); 
+   
+    if (!user) return res.status(404).json({ msg: "Usuário não encontrado!" });
+
+    // Retorna os dados seguros
+    res.status(200).json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Erro ao buscar usuário" });
+  }
+});
+
+
 // Conexão DB
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
