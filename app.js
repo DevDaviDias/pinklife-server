@@ -124,6 +124,26 @@ app.get("/user/me", checkToken, async (req, res) => {
   }
 });
 
+// Exemplo em app.js ou userRoutes.js
+app.post("/user/progress", checkToken, async (req, res) => {
+  try {
+    const { module, data } = req.body; // module = "agenda", data = { tarefas: [...] }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ msg: "Usuário não encontrado" });
+
+    // Atualiza o módulo específico (agenda, habitos, treinos...)
+    user.progress[module] = data;
+
+    await user.save();
+    res.status(200).json({ msg: "Progresso atualizado com sucesso" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Erro ao atualizar progresso" });
+  }
+});
+
+
 
 // Conexão DB
 const dbUser = process.env.DB_USER;
