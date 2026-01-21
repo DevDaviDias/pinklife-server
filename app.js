@@ -143,7 +143,28 @@ app.post("/user/progress", checkToken, async (req, res) => {
   }
 });
 
+const treinos = []; // lista global temporária
+// GET todos os treinos
+app.get("/treinos", (req, res) => {
+  res.json(treinos);
+});
 
+// POST novo treino
+app.post("/treinos", (req, res) => {
+  const { nome, categoria, duracao, exercicios } = req.body;
+  const novoTreino = { id: crypto.randomUUID(), nome, categoria, duracao, exercicios };
+  treinos.push(novoTreino);
+  res.status(201).json(novoTreino);
+});
+
+// DELETE treino
+app.delete("/treinos/:id", (req, res) => {
+  const { id } = req.params;
+  const index = treinos.findIndex(t => t.id === id);
+  if (index === -1) return res.status(404).json({ msg: "Treino não encontrado" });
+  treinos.splice(index, 1);
+  res.json({ msg: "Treino deletado" });
+});
 
 // Conexão DB
 const dbUser = process.env.DB_USER;
