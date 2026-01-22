@@ -109,13 +109,13 @@ app.post("/user/progress", checkToken, async (req, res) => {
 // --- ROTAS ESPECÍFICAS (ESTUDOS E TREINOS) ---
 
 // MATÉRIAS
-app.get("/estudos/materias", checkToken, async (req, res) => {
+app.get("/estudos/historico", checkToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    // Garantir que enviamos o array de dentro do objeto progress
-    res.json(user.progress.materias || []);
+    // IMPORTANTE: Use exatamente o nome que está no banco (historicoEstudos)
+    res.json(user.progress.historicoEstudos || []);
   } catch (e) {
-    res.status(500).json({ msg: "Erro ao buscar matérias" });
+    res.status(500).json({ msg: "Erro ao buscar histórico" });
   }
 });
 
