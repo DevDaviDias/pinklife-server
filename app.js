@@ -42,19 +42,19 @@ app.post("/auth/register", async (req, res) => {
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash(password, salt);
   
- const user = new User({ 
-  name, 
-  email, 
-  password: passwordHash, 
-  progress: {
-    agenda: { tarefas: [] },
-    materias: [],
-    historicoEstudos: [],
-    treinos: [],
-    financas: [],
-    saude: {} 
-  } 
-});
+  const user = new User({ 
+    name, 
+    email, 
+    password: passwordHash, 
+    progress: {
+      tarefas: [], // AGORA NA RAIZ DO PROGRESS
+      materias: [],
+      historicoEstudos: [],
+      treinos: [],
+      financas: [],
+      saude: {} 
+    } 
+  });
 
   try {
     await user.save();
@@ -77,16 +77,63 @@ app.post("/auth/login", async (req, res) => {
   res.status(200).json({ token });
 });
 
-app.get("/user/me", checkToken, async (req, res) => {
+// --- ROTA DA AGENDA (TAREFAS) ---
+
+app.get("/agenda/tarefas", checkToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
-    res.status(200).json(user);
-  } catch (error) {
-    res.status(500).json({ msg: "Erro ao buscar usuário" });
+    const user = await User.findById(req.user.id);
+    // Retorna o array da raiz ou vazio se não existir
+    res.json(user.progress.tarefas || []);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao buscar tarefas" });
   }
 });
 
-// --- ROTAS DE ESTUDOS (MATÉRIAS) ---
+app.post("/agenda/tarefas", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    // Segurança para usuários antigos em produção
+    if (!user.progress.tarefas) {
+      user.progress.tarefas = [];
+    }
+
+    const novaTarefa = {
+      id: crypto.randomUUID(),
+      ...req.body, // Espera titulo, horario, concluida
+      concluida: req.body.concluida || false
+    };
+
+    user.progress.tarefas.push(novaTarefa);
+    user.markModified('progress');
+    await user.save();
+
+    res.status(201).json(novaTarefa);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao salvar tarefa" });
+  }
+});
+
+app.patch("/agenda/tarefas/:id", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const { id } = req.params;
+
+    const tarefaIdx = user.progress.tarefas.findIndex(t => t.id === id);
+    if (tarefaIdx !== -1) {
+      user.progress.tarefas[tarefaIdx].concluida = !user.progress.tarefas[tarefaIdx].concluida;
+      user.markModified('progress');
+      await user.save();
+      res.json(user.progress.tarefas[tarefaIdx]);
+    } else {
+      res.status(404).json({ msg: "Tarefa não encontrada" });
+    }
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao atualizar tarefa" });
+  }
+});
+
+// --- ROTAS DE ESTUDOS (MATÉRIAS E HISTÓRICO) ---
 
 app.get("/estudos/materias", checkToken, async (req, res) => {
   try {
@@ -119,17 +166,6 @@ app.post("/estudos/materias", checkToken, async (req, res) => {
   }
 });
 
-// --- ROTAS DE ESTUDOS (HISTÓRICO) ---
-
-app.get("/estudos/historico", checkToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    res.json(user.progress.historicoEstudos || []);
-  } catch (e) {
-    res.status(500).json({ msg: "Erro ao buscar histórico" });
-  }
-});
-
 app.post("/estudos/historico", checkToken, async (req, res) => {
   const { materia, comentario, duracaoSegundos, data } = req.body;
   try {
@@ -145,7 +181,6 @@ app.post("/estudos/historico", checkToken, async (req, res) => {
     if(!user.progress.historicoEstudos) user.progress.historicoEstudos = [];
     user.progress.historicoEstudos.unshift(novaSessao);
 
-    // Atualiza horas estudadas na matéria correspondente
     if (user.progress.materias) {
       const matIdx = user.progress.materias.findIndex(m => m.nome === materia);
       if (matIdx !== -1) {
@@ -196,37 +231,8 @@ app.post("/treinos", checkToken, async (req, res) => {
   }
 });
 
-app.delete("/treinos/:id", checkToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    const { id } = req.params;
-
-    if (user.progress.treinos) {
-      user.progress.treinos = user.progress.treinos.filter(t => t.id !== id);
-      user.markModified('progress');
-      await user.save();
-    }
-
-    res.json({ msg: "Treino excluído com sucesso" });
-  } catch (e) {
-    res.status(500).json({ msg: "Erro ao excluir treino" });
-  }
-});
-
-
 // --- FINANCEIRO ---
 
-// Buscar transações
-app.get("/financas", checkToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    res.json(user.progress.financas || []);
-  } catch (e) {
-    res.status(500).json({ msg: "Erro ao buscar finanças" });
-  }
-});
-
-// Salvar transação (ou atualizar lista)
 app.post("/financas", checkToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -244,36 +250,8 @@ app.post("/financas", checkToken, async (req, res) => {
   }
 });
 
-// Deletar transação
-app.delete("/financas/:id", checkToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    const { id } = req.params;
-
-    user.progress.financas = user.progress.financas.filter(t => t.id !== Number(id));
-    user.markModified('progress');
-    await user.save();
-
-    res.json({ msg: "Transação excluída" });
-  } catch (e) {
-    res.status(500).json({ msg: "Erro ao excluir" });
-  }
-});
-
-
 // --- SAÚDE ---
 
-// Buscar todos os registros de saúde
-app.get("/saude", checkToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    res.json(user.progress.saude || {});
-  } catch (e) {
-    res.status(500).json({ msg: "Erro ao buscar dados de saúde" });
-  }
-});
-
-// Salvar ou atualizar um dia específico
 app.post("/saude", checkToken, async (req, res) => {
   try {
     const { data, menstruando, sintomas, notas } = req.body;
@@ -281,7 +259,6 @@ app.post("/saude", checkToken, async (req, res) => {
 
     if (!user.progress.saude) user.progress.saude = {};
 
-    // Atualiza ou cria o registro para aquela data específica
     user.progress.saude[data] = {
       data,
       menstruando,

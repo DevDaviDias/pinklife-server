@@ -17,17 +17,18 @@ const UserSchema = new mongoose.Schema({
     },
     progress: { 
         type: Object, 
+        // O default garante que novos usuários tenham todos os arrays prontos
         default: {
-            agenda: { tarefas: [] },
+            tarefas: [],           // Simplificado: removido o objeto "agenda"
             treinos: [],
-            // Ajustado para bater com as rotas do seu index.js:
             materias: [],
             historicoEstudos: [],
             financas: [],
-            saude: {} 
+            saude: {}              // Objeto vazio para chaves de data (ex: "2024-05-20")
         } 
     }
 }, { 
+    // minimize: false impede que o Mongoose apague campos vazios do banco
     minimize: false, 
     timestamps: true 
 });
