@@ -20,8 +20,11 @@ const UserSchema = new mongoose.Schema({
         default: {
             agenda: { tarefas: [] },
             treinos: [],
-            estudos: { materias: [], historico: [] }, // Limpei o "treinos" daqui para não duplicar
-            financas: [] // <--- ADICIONADO PARA O MÓDULO DE FINANÇAS
+            // Ajustado para bater com as rotas do seu index.js:
+            materias: [],
+            historicoEstudos: [],
+            financas: [],
+            saude: {} 
         } 
     }
 }, { 

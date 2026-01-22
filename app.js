@@ -51,7 +51,8 @@ app.post("/auth/register", async (req, res) => {
     materias: [],
     historicoEstudos: [],
     treinos: [],
-    financas: [] 
+    financas: [],
+    saude: {} 
   } 
 });
 
@@ -256,6 +257,44 @@ app.delete("/financas/:id", checkToken, async (req, res) => {
     res.json({ msg: "Transação excluída" });
   } catch (e) {
     res.status(500).json({ msg: "Erro ao excluir" });
+  }
+});
+
+
+// --- SAÚDE ---
+
+// Buscar todos os registros de saúde
+app.get("/saude", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(user.progress.saude || {});
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao buscar dados de saúde" });
+  }
+});
+
+// Salvar ou atualizar um dia específico
+app.post("/saude", checkToken, async (req, res) => {
+  try {
+    const { data, menstruando, sintomas, notas } = req.body;
+    const user = await User.findById(req.user.id);
+
+    if (!user.progress.saude) user.progress.saude = {};
+
+    // Atualiza ou cria o registro para aquela data específica
+    user.progress.saude[data] = {
+      data,
+      menstruando,
+      sintomas,
+      notas
+    };
+
+    user.markModified('progress');
+    await user.save();
+
+    res.json(user.progress.saude[data]);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao salvar registro de saúde" });
   }
 });
 
