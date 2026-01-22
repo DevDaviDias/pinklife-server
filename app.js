@@ -119,19 +119,36 @@ app.get("/estudos/historico", checkToken, async (req, res) => {
   }
 });
 
-app.post("/estudos/materias", checkToken, async (req, res) => {
-  const { nome, metaHoras } = req.body;
+app.post("/estudos/historico", checkToken, async (req, res) => {
   try {
+    const { materia, comentario, duracaoSegundos, data, id } = req.body;
     const user = await User.findById(req.user.id);
-    const novaMateria = { id: crypto.randomUUID(), nome, metaHoras: Number(metaHoras), horasEstudadas: 0 };
-    
-    if(!user.progress.materias) user.progress.materias = [];
-    user.progress.materias.push(novaMateria);
-    
+
+    // Cria o objeto da sessão
+    const novaSessao = { id, materia, comentario, duracaoSegundos, data };
+
+    // 1. SALVA NO HISTÓRICO (Verifique se o nome aqui é igual ao do GET)
+    if (!user.progress.historicoEstudos) {
+      user.progress.historicoEstudos = [];
+    }
+    user.progress.historicoEstudos.unshift(novaSessao);
+
+    // 2. ATUALIZA AS HORAS DA MATÉRIA AUTOMATICAMENTE
+    const matIdx = user.progress.materias.findIndex(m => m.nome === materia);
+    if (matIdx !== -1) {
+      // Soma os segundos convertidos em horas
+      user.progress.materias[matIdx].horasEstudadas += duracaoSegundos / 3600;
+    }
+
+    // AVISAR O MONGO QUE O OBJETO PROGRESS MUDOU
     user.markModified('progress');
     await user.save();
-    res.status(201).json(novaMateria);
-  } catch (e) { res.status(500).send(e); }
+
+    res.json(novaSessao);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ msg: "Erro ao salvar sessão de estudo" });
+  }
 });
 
 // HISTÓRICO DE ESTUDOS
