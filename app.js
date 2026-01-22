@@ -1,4 +1,3 @@
-/* backend/index.js */
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
@@ -7,7 +6,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const cors = require('cors');
+const cors = require("cors");
+const crypto = require("crypto");
 
 const app = express();
 app.use(cors());
@@ -16,7 +16,7 @@ app.use(express.json());
 const User = require("./models/User.js");
 const PORT = process.env.PORT || 3001;
 
-// Middleware de autenticação
+// --- MIDDLEWARE DE AUTENTICAÇÃO ---
 function checkToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -33,21 +33,7 @@ function checkToken(req, res, next) {
   }
 }
 
-// --- ROTAS PÚBLICAS ---
-app.get("/", (req, res) => {
-  res.status(200).json({ msg: "Bem vinda a nossa Api" });
-});
-
-// --- ROTA NOVA: USER ME (Resolve o erro 404 do Axios) ---
-app.get("/user/me", checkToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ msg: "Usuário não encontrado!" });
-    res.status(200).json(user);
-  } catch (error) {
-    res.status(500).json({ msg: "Erro ao buscar usuário" });
-  }
-});
+// --- ROTAS DE AUTENTICAÇÃO ---
 
 app.post("/auth/register", async (req, res) => {
   let { name, email, password, confirmpassword } = req.body || {};
@@ -56,8 +42,17 @@ app.post("/auth/register", async (req, res) => {
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash(password, salt);
   
-  // Garantimos que o usuário comece com um objeto progress vazio
-  const user = new User({ name, email, password: passwordHash, progress: {} });
+  // Estrutura inicial para evitar erros de 'undefined'
+  const user = new User({ 
+    name, 
+    email, 
+    password: passwordHash, 
+    progress: {
+      materias: [],
+      historicoEstudos: [],
+      treinos: []
+    } 
+  });
 
   try {
     await user.save();
@@ -80,186 +75,100 @@ app.post("/auth/login", async (req, res) => {
   res.status(200).json({ token });
 });
 
-// --- ROTAS DE PROGRESSO ---
-
-// SALVAR
-app.post("/user/progress", checkToken, async (req, res) => {
-  const { module, data } = req.body; 
-  const userId = req.user.id;
-
-  try {
-    // Usamos o [module] dinâmico para salvar em progress.agenda, progress.treino, etc.
-    await User.findByIdAndUpdate(userId, {
-      $set: { [`progress.${module}`]: data }
-    });
-    res.status(200).json({ msg: "Dados salvos com sucesso!" });
-  } catch (error) {
-    res.status(500).json({ msg: "Erro ao salvar dados" });
-  }
-});
-
-// BUSCAR
-app.get("/user/progress", checkToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    // Retornamos exatamente o objeto progress para o Contexto ler
-    res.status(200).json({ progress: user.progress || {} });
-  } catch (error) {
-    res.status(500).json({ msg: "Erro ao buscar dados" });
-  }
-});
+// --- ROTAS DE USUÁRIO ---
 
 app.get("/user/me", checkToken, async (req, res) => {
   try {
-   
-    const user = await User.findById(req.user.id).select("-_id -password -__v"); 
-   
+    const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ msg: "Usuário não encontrado!" });
-
-    // Retorna os dados seguros
     res.status(200).json(user);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ msg: "Erro ao buscar usuário" });
   }
 });
 
-// Exemplo em app.js ou userRoutes.js
-app.post("/user/progress", checkToken, async (req, res) => {
-  try {
-    const { module, data } = req.body; // module = "agenda", data = { tarefas: [...] }
+// --- LÓGICA DE PERSISTÊNCIA (ESTUDOS E TREINOS) ---
 
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ msg: "Usuário não encontrado" });
-
-    // Atualiza o módulo específico (agenda, habitos, treinos...)
-    user.progress[module] = data;
-
-    await user.save();
-    res.status(200).json({ msg: "Progresso atualizado com sucesso" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Erro ao atualizar progresso" });
-  }
+// MATÉRIAS
+app.get("/estudos/materias", checkToken, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  res.json(user.progress.materias || []);
 });
 
-const materias = [];
-const historicoEstudos = [];
-
-// ---------- MATÉRIAS ----------
-
-// GET todas as matérias
-app.get("/estudos/materias", (req, res) => {
-  res.json(materias);
-});
-
-// POST criar matéria
-app.post("/estudos/materias", (req, res) => {
+app.post("/estudos/materias", checkToken, async (req, res) => {
   const { nome, metaHoras } = req.body;
-
-  if (!nome || !metaHoras) {
-    return res.status(400).json({ msg: "Dados inválidos" });
-  }
-
-  const novaMateria = {
-    id: crypto.randomUUID(),
-    nome,
-    metaHoras: Number(metaHoras),
-    horasEstudadas: 0,
-  };
-
-  materias.push(novaMateria);
-  res.status(201).json(novaMateria);
+  try {
+    const user = await User.findById(req.user.id);
+    const novaMateria = { id: crypto.randomUUID(), nome, metaHoras: Number(metaHoras), horasEstudadas: 0 };
+    
+    if(!user.progress.materias) user.progress.materias = [];
+    user.progress.materias.push(novaMateria);
+    
+    user.markModified('progress');
+    await user.save();
+    res.status(201).json(novaMateria);
+  } catch (e) { res.status(500).send(e); }
 });
 
-// DELETE matéria
-app.delete("/estudos/materias/:id", (req, res) => {
-  const { id } = req.params;
-
-  const index = materias.findIndex(m => m.id === id);
-  if (index === -1) {
-    return res.status(404).json({ msg: "Matéria não encontrada" });
-  }
-
-  materias.splice(index, 1);
-  res.json({ msg: "Matéria removida com sucesso" });
+// HISTÓRICO DE ESTUDOS
+app.get("/estudos/historico", checkToken, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  res.json(user.progress.historicoEstudos || []);
 });
 
-// ---------- HISTÓRICO ----------
-
-// GET histórico
-app.get("/estudos/historico", (req, res) => {
-  res.json(historicoEstudos);
-});
-
-// POST nova sessão de estudo
-app.post("/estudos/historico", (req, res) => {
+app.post("/estudos/historico", checkToken, async (req, res) => {
   const { materia, comentario, duracaoSegundos, data } = req.body;
+  try {
+    const user = await User.findById(req.user.id);
+    const novaSessao = {
+      id: crypto.randomUUID(),
+      materia,
+      comentario: comentario || "",
+      duracaoSegundos: Number(duracaoSegundos),
+      data: data || new Date().toISOString(),
+    };
 
-  if (!materia || !duracaoSegundos) {
-    return res.status(400).json({ msg: "Dados inválidos" });
-  }
+    user.progress.historicoEstudos.unshift(novaSessao);
 
-  const novaSessao = {
-    id: crypto.randomUUID(),
-    materia,
-    comentario: comentario || "",
-    duracaoSegundos: Number(duracaoSegundos),
-    data: data || new Date().toISOString(),
-  };
+    // Atualiza horas na matéria correspondente dentro do banco
+    const matIdx = user.progress.materias.findIndex(m => m.nome === materia);
+    if (matIdx !== -1) {
+      user.progress.materias[matIdx].horasEstudadas += duracaoSegundos / 3600;
+    }
 
-  historicoEstudos.unshift(novaSessao);
-
-  // Atualiza horas estudadas da matéria
-  const materiaEncontrada = materias.find(m => m.nome === materia);
-  if (materiaEncontrada) {
-    materiaEncontrada.horasEstudadas += duracaoSegundos / 3600;
-  }
-
-  res.status(201).json(novaSessao);
+    user.markModified('progress');
+    await user.save();
+    res.status(201).json(novaSessao);
+  } catch (e) { res.status(500).send(e); }
 });
 
-// DELETE sessão do histórico
-app.delete("/estudos/historico/:id", (req, res) => {
-  const { id } = req.params;
-
-  const index = historicoEstudos.findIndex(h => h.id === id);
-  if (index === -1) {
-    return res.status(404).json({ msg: "Sessão não encontrada" });
-  }
-
-  historicoEstudos.splice(index, 1);
-  res.json({ msg: "Sessão removida com sucesso" });
+// TREINOS
+app.get("/treinos", checkToken, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  res.json(user.progress.treinos || []);
 });
 
-
-
-const treinos = []; // lista global temporária
-// GET todos os treinos
-app.get("/treinos", (req, res) => {
-  res.json(treinos);
-});
-
-// POST novo treino
-app.post("/treinos", (req, res) => {
+app.post("/treinos", checkToken, async (req, res) => {
   const { nome, categoria, duracao, exercicios } = req.body;
-  const novoTreino = { id: crypto.randomUUID(), nome, categoria, duracao, exercicios };
-  treinos.push(novoTreino);
-  res.status(201).json(novoTreino);
+  try {
+    const user = await User.findById(req.user.id);
+    const novoTreino = { id: crypto.randomUUID(), nome, categoria, duracao, exercicios };
+    
+    if(!user.progress.treinos) user.progress.treinos = [];
+    user.progress.treinos.push(novoTreino);
+    
+    user.markModified('progress');
+    await user.save();
+    res.status(201).json(novoTreino);
+  } catch (e) { res.status(500).send(e); }
 });
 
-// DELETE treino
-app.delete("/treinos/:id", (req, res) => {
-  const { id } = req.params;
-  const index = treinos.findIndex(t => t.id === id);
-  if (index === -1) return res.status(404).json({ msg: "Treino não encontrado" });
-  treinos.splice(index, 1);
-  res.json({ msg: "Treino deletado" });
-});
-
-// Conexão DB
+// --- CONEXÃO DB ---
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
+
 mongoose.connect(`mongodb+srv://${dbUser}:${dbPassword}@cluster0.xvyco85.mongodb.net/?appName=Cluster0`)
-  .then(() => app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`)))
+  .then(() => {
+    app.listen(PORT, () => console.log(`Rodando na porta ${PORT} e conectado ao MongoDB`));
+  })
   .catch(err => console.log(err));
