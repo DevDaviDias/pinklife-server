@@ -153,28 +153,40 @@ app.post("/estudos/historico", checkToken, async (req, res) => {
 
 // HISTÓRICO DE ESTUDOS
 app.post("/estudos/historico", checkToken, async (req, res) => {
-  const { materia, comentario, duracaoSegundos, data } = req.body;
   try {
+    const { materia, comentario, duracaoSegundos, data, id } = req.body;
     const user = await User.findById(req.user.id);
-    const novaSessao = {
-      id: crypto.randomUUID(),
-      materia,
-      comentario: comentario || "",
-      duracaoSegundos: Number(duracaoSegundos),
-      data: data || new Date().toISOString(),
-    };
 
-    user.progress.historicoEstudos.unshift(novaSessao);
+    if (!user) return res.status(404).json({ msg: "Usuário não encontrado" });
 
-    const matIdx = user.progress.materias.findIndex(m => m.nome === materia);
-    if (matIdx !== -1) {
-      user.progress.materias[matIdx].horasEstudadas += duracaoSegundos / 3600;
+    const novaSessao = { id, materia, comentario, duracaoSegundos, data };
+
+    // GARANTIA: Se a chave não existir no banco ainda, nós criamos agora
+    if (!user.progress.historicoEstudos) {
+      user.progress.historicoEstudos = [];
     }
 
+    // Adiciona a nova sessão
+    user.progress.historicoEstudos.unshift(novaSessao);
+
+    // Atualiza as horas na matéria correspondente
+    if (user.progress.materias) {
+      const matIdx = user.progress.materias.findIndex(m => m.nome === materia);
+      if (matIdx !== -1) {
+        user.progress.materias[matIdx].horasEstudadas += (duracaoSegundos / 3600);
+      }
+    }
+
+    // ESSENCIAL: O Mongo precisa disso para salvar objetos aninhados (Mixed)
     user.markModified('progress');
+    
     await user.save();
-    res.status(201).json(novaSessao);
-  } catch (e) { res.status(500).send(e); }
+    console.log("✅ Sessão salva com sucesso!");
+    res.json(novaSessao);
+  } catch (e) {
+    console.error("❌ Erro ao salvar histórico:", e);
+    res.status(500).json({ msg: "Erro interno no servidor" });
+  }
 });
 
 // TREINOS
