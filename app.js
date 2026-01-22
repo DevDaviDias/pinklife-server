@@ -42,12 +42,12 @@ app.post("/auth/register", async (req, res) => {
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash(password, salt);
   
-  // Estrutura inicial para evitar erros de 'undefined'
   const user = new User({ 
     name, 
     email, 
     password: passwordHash, 
     progress: {
+      agenda: { tarefas: [] },
       materias: [],
       historicoEstudos: [],
       treinos: []
@@ -75,8 +75,7 @@ app.post("/auth/login", async (req, res) => {
   res.status(200).json({ token });
 });
 
-// --- ROTAS DE USUÁRIO ---
-
+// --- ROTA DE USUÁRIO (ME) ---
 app.get("/user/me", checkToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -87,7 +86,27 @@ app.get("/user/me", checkToken, async (req, res) => {
   }
 });
 
-// --- LÓGICA DE PERSISTÊNCIA (ESTUDOS E TREINOS) ---
+// --- ROTA GENÉRICA DE PROGRESSO (USADA PELA AGENDA) ---
+app.post("/user/progress", checkToken, async (req, res) => {
+  const { module, data } = req.body; 
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ msg: "Usuário não encontrado" });
+
+    // Atualiza o módulo (agenda, habitos, etc)
+    user.progress[module] = data;
+
+    // AVISA O MONGOOSE PARA GRAVAR O OBJETO
+    user.markModified('progress'); 
+    
+    await user.save();
+    res.status(200).json({ msg: "Progresso atualizado com sucesso!" });
+  } catch (error) {
+    res.status(500).json({ msg: "Erro ao salvar progresso" });
+  }
+});
+
+// --- ROTAS ESPECÍFICAS (ESTUDOS E TREINOS) ---
 
 // MATÉRIAS
 app.get("/estudos/materias", checkToken, async (req, res) => {
@@ -111,11 +130,6 @@ app.post("/estudos/materias", checkToken, async (req, res) => {
 });
 
 // HISTÓRICO DE ESTUDOS
-app.get("/estudos/historico", checkToken, async (req, res) => {
-  const user = await User.findById(req.user.id);
-  res.json(user.progress.historicoEstudos || []);
-});
-
 app.post("/estudos/historico", checkToken, async (req, res) => {
   const { materia, comentario, duracaoSegundos, data } = req.body;
   try {
@@ -130,7 +144,6 @@ app.post("/estudos/historico", checkToken, async (req, res) => {
 
     user.progress.historicoEstudos.unshift(novaSessao);
 
-    // Atualiza horas na matéria correspondente dentro do banco
     const matIdx = user.progress.materias.findIndex(m => m.nome === materia);
     if (matIdx !== -1) {
       user.progress.materias[matIdx].horasEstudadas += duracaoSegundos / 3600;
@@ -143,11 +156,6 @@ app.post("/estudos/historico", checkToken, async (req, res) => {
 });
 
 // TREINOS
-app.get("/treinos", checkToken, async (req, res) => {
-  const user = await User.findById(req.user.id);
-  res.json(user.progress.treinos || []);
-});
-
 app.post("/treinos", checkToken, async (req, res) => {
   const { nome, categoria, duracao, exercicios } = req.body;
   try {
@@ -169,6 +177,6 @@ const dbPassword = process.env.DB_PASS;
 
 mongoose.connect(`mongodb+srv://${dbUser}:${dbPassword}@cluster0.xvyco85.mongodb.net/?appName=Cluster0`)
   .then(() => {
-    app.listen(PORT, () => console.log(`Rodando na porta ${PORT} e conectado ao MongoDB`));
+    app.listen(PORT, () => console.log(`Servidor rodando e MongoDB conectado!`));
   })
   .catch(err => console.log(err));
