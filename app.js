@@ -295,6 +295,44 @@ app.post("/saude", checkToken, async (req, res) => {
   }
 });
 
+
+// --- ROTAS DE HÁBITOS ---
+app.get("/habitos", checkToken, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  res.json(user.progress.habitos || []);
+});
+
+app.post("/habitos", checkToken, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  const novo = { id: crypto.randomUUID(), ...req.body };
+  if(!user.progress.habitos) user.progress.habitos = [];
+  user.progress.habitos.push(novo);
+  user.markModified('progress');
+  await user.save();
+  res.status(201).json(novo);
+});
+
+app.patch("/habitos/:id", checkToken, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  const { id } = req.params;
+  const idx = user.progress.habitos.findIndex(h => h.id === id);
+  if(idx !== -1) {
+    const h = user.progress.habitos[idx];
+    h.concluido = !h.concluido;
+    h.streak = h.concluido ? (h.streak + 1) : Math.max(0, h.streak - 1);
+    user.markModified('progress');
+    await user.save();
+    res.json(h);
+  }
+});
+
+app.delete("/habitos/:id", checkToken, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  user.progress.habitos = user.progress.habitos.filter(h => h.id !== req.params.id);
+  user.markModified('progress');
+  await user.save();
+  res.json({ msg: "Excluído" });
+});
 // --- CONEXÃO DB ---
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
