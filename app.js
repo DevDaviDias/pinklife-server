@@ -110,8 +110,13 @@ app.post("/user/progress", checkToken, async (req, res) => {
 
 // MATÉRIAS
 app.get("/estudos/materias", checkToken, async (req, res) => {
-  const user = await User.findById(req.user.id);
-  res.json(user.progress.materias || []);
+  try {
+    const user = await User.findById(req.user.id);
+    // Garantir que enviamos o array de dentro do objeto progress
+    res.json(user.progress.materias || []);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao buscar matérias" });
+  }
 });
 
 app.post("/estudos/materias", checkToken, async (req, res) => {
