@@ -47,7 +47,7 @@ app.post("/auth/register", async (req, res) => {
     email, 
     password: passwordHash, 
     progress: {
-      tarefas: [], // AGORA NA RAIZ DO PROGRESS
+      tarefas: [], 
       materias: [],
       historicoEstudos: [],
       treinos: [],
@@ -82,7 +82,6 @@ app.post("/auth/login", async (req, res) => {
 app.get("/agenda/tarefas", checkToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    // Retorna o array da raiz ou vazio se não existir
     res.json(user.progress.tarefas || []);
   } catch (e) {
     res.status(500).json({ msg: "Erro ao buscar tarefas" });
@@ -92,15 +91,11 @@ app.get("/agenda/tarefas", checkToken, async (req, res) => {
 app.post("/agenda/tarefas", checkToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    
-    // Segurança para usuários antigos em produção
-    if (!user.progress.tarefas) {
-      user.progress.tarefas = [];
-    }
+    if (!user.progress.tarefas) user.progress.tarefas = [];
 
     const novaTarefa = {
       id: crypto.randomUUID(),
-      ...req.body, // Espera titulo, horario, concluida
+      ...req.body,
       concluida: req.body.concluida || false
     };
 
@@ -144,6 +139,20 @@ app.get("/estudos/materias", checkToken, async (req, res) => {
   }
 });
 
+// ROTA ADICIONADA: Para atualizar a lista (excluir matéria)
+app.post("/estudos/materias/update-list", checkToken, async (req, res) => {
+  try {
+    const { materias } = req.body;
+    const user = await User.findById(req.user.id);
+    user.progress.materias = materias;
+    user.markModified('progress');
+    await user.save();
+    res.json({ msg: "Lista atualizada" });
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao atualizar lista" });
+  }
+});
+
 app.post("/estudos/materias", checkToken, async (req, res) => {
   const { nome, metaHoras } = req.body;
   try {
@@ -166,6 +175,16 @@ app.post("/estudos/materias", checkToken, async (req, res) => {
   }
 });
 
+// ROTA ADICIONADA: Para buscar o histórico (GET)
+app.get("/estudos/historico", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(user.progress.historicoEstudos || []);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao buscar histórico" });
+  }
+});
+
 app.post("/estudos/historico", checkToken, async (req, res) => {
   const { materia, comentario, duracaoSegundos, data } = req.body;
   try {
@@ -181,6 +200,7 @@ app.post("/estudos/historico", checkToken, async (req, res) => {
     if(!user.progress.historicoEstudos) user.progress.historicoEstudos = [];
     user.progress.historicoEstudos.unshift(novaSessao);
 
+    // Atualiza as horas na matéria correspondente
     if (user.progress.materias) {
       const matIdx = user.progress.materias.findIndex(m => m.nome === materia);
       if (matIdx !== -1) {
