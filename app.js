@@ -75,47 +75,23 @@ app.post("/auth/login", async (req, res) => {
   res.status(200).json({ token });
 });
 
-// --- ROTA DE USUÁRIO (ME) ---
 app.get("/user/me", checkToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ msg: "Usuário não encontrado!" });
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ msg: "Erro ao buscar usuário" });
   }
 });
 
-// --- ROTA GENÉRICA DE PROGRESSO (USADA PELA AGENDA) ---
-app.post("/user/progress", checkToken, async (req, res) => {
-  const { module, data } = req.body; 
+// --- ROTAS DE ESTUDOS (MATÉRIAS) ---
+
+app.get("/estudos/materias", checkToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ msg: "Usuário não encontrado" });
-
-    // Atualiza o módulo (agenda, habitos, etc)
-    user.progress[module] = data;
-
-    // AVISA O MONGOOSE PARA GRAVAR O OBJETO
-    user.markModified('progress'); 
-    
-    await user.save();
-    res.status(200).json({ msg: "Progresso atualizado com sucesso!" });
-  } catch (error) {
-    res.status(500).json({ msg: "Erro ao salvar progresso" });
-  }
-});
-
-// --- ROTAS ESPECÍFICAS (ESTUDOS E TREINOS) ---
-
-// MATÉRIAS
-app.get("/estudos/historico", checkToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    // IMPORTANTE: Use exatamente o nome que está no banco (historicoEstudos)
-    res.json(user.progress.historicoEstudos || []);
+    res.json(user.progress.materias || []);
   } catch (e) {
-    res.status(500).json({ msg: "Erro ao buscar histórico" });
+    res.status(500).json({ msg: "Erro ao buscar matérias" });
   }
 });
 
@@ -123,7 +99,12 @@ app.post("/estudos/materias", checkToken, async (req, res) => {
   const { nome, metaHoras } = req.body;
   try {
     const user = await User.findById(req.user.id);
-    const novaMateria = { id: crypto.randomUUID(), nome, metaHoras: Number(metaHoras), horasEstudadas: 0 };
+    const novaMateria = { 
+      id: crypto.randomUUID(), 
+      nome, 
+      metaHoras: Number(metaHoras), 
+      horasEstudadas: 0 
+    };
     
     if(!user.progress.materias) user.progress.materias = [];
     user.progress.materias.push(novaMateria);
@@ -131,10 +112,22 @@ app.post("/estudos/materias", checkToken, async (req, res) => {
     user.markModified('progress');
     await user.save();
     res.status(201).json(novaMateria);
-  } catch (e) { res.status(500).send(e); }
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao salvar matéria" });
+  }
 });
 
-// HISTÓRICO DE ESTUDOS
+// --- ROTAS DE ESTUDOS (HISTÓRICO) ---
+
+app.get("/estudos/historico", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(user.progress.historicoEstudos || []);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao buscar histórico" });
+  }
+});
+
 app.post("/estudos/historico", checkToken, async (req, res) => {
   const { materia, comentario, duracaoSegundos, data } = req.body;
   try {
@@ -147,33 +140,75 @@ app.post("/estudos/historico", checkToken, async (req, res) => {
       data: data || new Date().toISOString(),
     };
 
+    if(!user.progress.historicoEstudos) user.progress.historicoEstudos = [];
     user.progress.historicoEstudos.unshift(novaSessao);
 
-    const matIdx = user.progress.materias.findIndex(m => m.nome === materia);
-    if (matIdx !== -1) {
-      user.progress.materias[matIdx].horasEstudadas += duracaoSegundos / 3600;
+    // Atualiza horas estudadas na matéria correspondente
+    if (user.progress.materias) {
+      const matIdx = user.progress.materias.findIndex(m => m.nome === materia);
+      if (matIdx !== -1) {
+        user.progress.materias[matIdx].horasEstudadas += (duracaoSegundos / 3600);
+      }
     }
 
     user.markModified('progress');
     await user.save();
     res.status(201).json(novaSessao);
-  } catch (e) { res.status(500).send(e); }
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao salvar sessão" });
+  }
 });
 
-// TREINOS
-app.post("/treinos", checkToken, async (req, res) => {
-  const { nome, categoria, duracao, exercicios } = req.body;
+// --- ROTAS DE TREINOS ---
+
+app.get("/treinos", checkToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    const novoTreino = { id: crypto.randomUUID(), nome, categoria, duracao, exercicios };
-    
-    if(!user.progress.treinos) user.progress.treinos = [];
-    user.progress.treinos.push(novoTreino);
+    res.json(user.progress.treinos || []);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao buscar treinos" });
+  }
+});
+
+app.post("/treinos", checkToken, async (req, res) => {
+  try {
+    const { nome, categoria, duracao, exercicios } = req.body;
+    const user = await User.findById(req.user.id);
+
+    const novoTreino = { 
+      id: crypto.randomUUID(), 
+      nome, 
+      categoria: categoria || "Musculação", 
+      duracao: duracao || "45 min", 
+      exercicios: exercicios || [] 
+    };
+
+    if (!user.progress.treinos) user.progress.treinos = [];
+    user.progress.treinos.unshift(novoTreino);
     
     user.markModified('progress');
     await user.save();
     res.status(201).json(novoTreino);
-  } catch (e) { res.status(500).send(e); }
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao salvar treino" });
+  }
+});
+
+app.delete("/treinos/:id", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const { id } = req.params;
+
+    if (user.progress.treinos) {
+      user.progress.treinos = user.progress.treinos.filter(t => t.id !== id);
+      user.markModified('progress');
+      await user.save();
+    }
+
+    res.json({ msg: "Treino excluído com sucesso" });
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao excluir treino" });
+  }
 });
 
 // --- CONEXÃO DB ---
@@ -182,6 +217,6 @@ const dbPassword = process.env.DB_PASS;
 
 mongoose.connect(`mongodb+srv://${dbUser}:${dbPassword}@cluster0.xvyco85.mongodb.net/?appName=Cluster0`)
   .then(() => {
-    app.listen(PORT, () => console.log(`Servidor rodando e MongoDB conectado!`));
+    app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT} e MongoDB conectado!`));
   })
-  .catch(err => console.log(err));
+  .catch(err => console.log("Erro ao conectar no MongoDB:", err));

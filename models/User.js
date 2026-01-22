@@ -22,7 +22,7 @@ const UserSchema = new mongoose.Schema({
         default: {
             agenda: { tarefas: [] },
             treinos: [],
-            estudos: { materias: [], historico: [] }
+            estudos: { materias: [], historico: [], treinos: []  }
         } 
     }
 }, { 
