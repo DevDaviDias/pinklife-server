@@ -42,17 +42,18 @@ app.post("/auth/register", async (req, res) => {
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash(password, salt);
   
-  const user = new User({ 
-    name, 
-    email, 
-    password: passwordHash, 
-    progress: {
-      agenda: { tarefas: [] },
-      materias: [],
-      historicoEstudos: [],
-      treinos: []
-    } 
-  });
+ const user = new User({ 
+  name, 
+  email, 
+  password: passwordHash, 
+  progress: {
+    agenda: { tarefas: [] },
+    materias: [],
+    historicoEstudos: [],
+    treinos: [],
+    financas: [] 
+  } 
+});
 
   try {
     await user.save();
@@ -208,6 +209,53 @@ app.delete("/treinos/:id", checkToken, async (req, res) => {
     res.json({ msg: "Treino excluído com sucesso" });
   } catch (e) {
     res.status(500).json({ msg: "Erro ao excluir treino" });
+  }
+});
+
+
+// --- FINANCEIRO ---
+
+// Buscar transações
+app.get("/financas", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(user.progress.financas || []);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao buscar finanças" });
+  }
+});
+
+// Salvar transação (ou atualizar lista)
+app.post("/financas", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const novaTransacao = { ...req.body, id: Date.now() };
+
+    if (!user.progress.financas) user.progress.financas = [];
+    
+    user.progress.financas.unshift(novaTransacao);
+    user.markModified('progress');
+    await user.save();
+
+    res.status(201).json(novaTransacao);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao salvar transação" });
+  }
+});
+
+// Deletar transação
+app.delete("/financas/:id", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const { id } = req.params;
+
+    user.progress.financas = user.progress.financas.filter(t => t.id !== Number(id));
+    user.markModified('progress');
+    await user.save();
+
+    res.json({ msg: "Transação excluída" });
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao excluir" });
   }
 });
 
