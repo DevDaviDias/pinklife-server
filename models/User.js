@@ -16,18 +16,22 @@ const UserSchema = new mongoose.Schema({
         required: true 
     },
     progress: { 
-        type: Object, 
-        // Adicionamos 'habitos' aqui para garantir a estrutura completa
-        default: {
-            tarefas: [],           
-            habitos: [],           // <--- ADICIONADO AQUI
-            treinos: [],
-            materias: [],
-            historicoEstudos: [],
-            financas: [],
-            saude: {}              
-        } 
-    }
+    type: Object, 
+    default: {
+        tarefas: [],           
+        habitos: [],           
+        treinos: [],
+        materias: [],
+        historicoEstudos: [],
+        financas: [],
+        saude: {},
+        beleza: {              // <--- ADICIONADO AQUI
+            skincareManha: { limpador: false, tonico: false, hidratante: false, protetor: false },
+            skincareNoite: { demaquilante: false, limpador: false, serum: false, hidratante: false },
+            cronogramaCapilar: "Hidratação"
+        }
+    } 
+}
 }, { 
     minimize: false, 
     timestamps: true 

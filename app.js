@@ -333,6 +333,18 @@ app.delete("/habitos/:id", checkToken, async (req, res) => {
   await user.save();
   res.json({ msg: "Excluído" });
 });
+
+app.put("/progress/beleza", checkToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        user.progress.beleza = req.body;
+        user.markModified('progress');
+        await user.save();
+        res.json(user.progress.beleza);
+    } catch (err) {
+        res.status(500).json({ msg: "Erro ao salvar beleza" });
+    }
+});
 // --- CONEXÃO DB ---
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
