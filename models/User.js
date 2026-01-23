@@ -30,15 +30,13 @@ const UserSchema = new mongoose.Schema({
                 skincareNoite: { demaquilante: false, limpador: false, serum: false, hidratante: false },
                 cronogramaCapilar: "Hidratação"
             },
-            // --- ADICIONE ESTE BLOCO ABAIXO ---
             alimentacao: {
-                refeicoes: { 
-                    cafe: "", 
-                    almoco: "", 
-                    lanche: "", 
-                    jantar: "" 
-                },
+                refeicoes: { cafe: "", almoco: "", lanche: "", jantar: "" },
                 compras: []
+            },
+            // --- ADICIONE ESTE BLOCO ABAIXO ---
+            viagens: {
+                mala: []
             }
         } 
     }

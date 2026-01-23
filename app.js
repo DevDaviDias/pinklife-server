@@ -353,6 +353,19 @@ app.put("/progress/alimentacao", checkToken, async (req, res) => {
     await user.save();
     res.json(user.progress.alimentacao);
 });
+
+app.put("/progress/viagens", checkToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        user.progress.viagens = req.body;
+        user.markModified('progress');
+        await user.save();
+        res.json(user.progress.viagens);
+    } catch (err) {
+        res.status(500).json({ msg: "Erro ao salvar mala" });
+    }
+});
+
 // --- CONEXÃO DB ---
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
