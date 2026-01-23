@@ -34,9 +34,16 @@ const UserSchema = new mongoose.Schema({
                 refeicoes: { cafe: "", almoco: "", lanche: "", jantar: "" },
                 compras: []
             },
-            // --- ADICIONE ESTE BLOCO ABAIXO ---
             viagens: {
                 mala: []
+            },
+            // --- ÚLTIMA ADIÇÃO: CASA ---
+            casa: {
+                tarefas: [],
+                cardapio: { 
+                    almoco: "", 
+                    jantar: "" 
+                }
             }
         } 
     }

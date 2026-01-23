@@ -366,6 +366,14 @@ app.put("/progress/viagens", checkToken, async (req, res) => {
     }
 });
 
+app.put("/progress/casa", checkToken, async (req, res) => {
+    const user = await User.findById(req.user.id);
+    user.progress.casa = req.body;
+    user.markModified('progress');
+    await user.save();
+    res.json(user.progress.casa);
+});
+
 // --- CONEXÃO DB ---
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
