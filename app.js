@@ -345,6 +345,14 @@ app.put("/progress/beleza", checkToken, async (req, res) => {
         res.status(500).json({ msg: "Erro ao salvar beleza" });
     }
 });
+
+app.put("/progress/alimentacao", checkToken, async (req, res) => {
+    const user = await User.findById(req.user.id);
+    user.progress.alimentacao = req.body;
+    user.markModified('progress');
+    await user.save();
+    res.json(user.progress.alimentacao);
+});
 // --- CONEXÃO DB ---
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
