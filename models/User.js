@@ -15,8 +15,9 @@ const UserSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
+    // Definir como Mixed ou Schema ajuda o Mongoose a entender a profundidade dos dados
     progress: { 
-        type: Object, 
+        type: mongoose.Schema.Types.Mixed, 
         default: {
             tarefas: [],           
             habitos: [],           
@@ -37,7 +38,6 @@ const UserSchema = new mongoose.Schema({
             viagens: {
                 mala: []
             },
-            // --- ÚLTIMA ADIÇÃO: CASA ---
             casa: {
                 tarefas: [],
                 cardapio: { 
@@ -48,7 +48,7 @@ const UserSchema = new mongoose.Schema({
         } 
     }
 }, { 
-    minimize: false, 
+    minimize: false, // Mantém objetos vazios no banco
     timestamps: true 
 });
 
