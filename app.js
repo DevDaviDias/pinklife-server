@@ -42,17 +42,27 @@ app.post("/auth/register", async (req, res) => {
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash(password, salt);
   
-  const user = new User({ 
+const user = new User({ 
     name, 
     email, 
     password: passwordHash, 
+    // Usamos o padrão definido no Model, mas garantimos os objetos vazios aqui
     progress: {
       tarefas: [], 
+      habitos: [],
       materias: [],
       historicoEstudos: [],
       treinos: [],
       financas: [],
-      saude: {} 
+      saude: {},
+      beleza: {
+        skincareManha: { limpador: false, tonico: false, hidratante: false, protetor: false },
+        skincareNoite: { demaquilante: false, limpador: false, serum: false, hidratante: false },
+        cronogramaCapilar: "Hidratação"
+      },
+      alimentacao: { refeicoes: { cafe: "", almoco: "", lanche: "", jantar: "" }, compras: [] },
+      viagens: { mala: [] },
+      casa: { tarefas: [], cardapio: { almoco: "", jantar: "" } }
     } 
   });
 
@@ -372,6 +382,23 @@ app.put("/progress/casa", checkToken, async (req, res) => {
     user.markModified('progress');
     await user.save();
     res.json(user.progress.casa);
+});
+
+// ROTA GENÉRICA (Opcional, mas recomendada)
+app.put("/progress/:modulo", checkToken, async (req, res) => {
+    try {
+        const { modulo } = req.params;
+        const user = await User.findById(req.user.id);
+        
+        // Atualiza dinamicamente o módulo enviado (ex: 'casa', 'viagens')
+        user.progress[modulo] = req.body;
+        
+        user.markModified('progress');
+        await user.save();
+        res.json(user.progress[modulo]);
+    } catch (err) {
+        res.status(500).json({ msg: "Erro ao atualizar módulo" });
+    }
 });
 
 // --- CONEXÃO DB ---
