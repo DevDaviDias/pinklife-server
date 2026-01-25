@@ -48,7 +48,7 @@ const UserSchema = new mongoose.Schema({
         } 
     }
 }, { 
-    minimize: false, // Mantém objetos vazios no banco
+    minimize: false, 
     timestamps: true 
 });
 

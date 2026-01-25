@@ -34,6 +34,15 @@ function checkToken(req, res, next) {
 }
 
 // --- ROTAS DE AUTENTICAÇÃO ---
+// Adicione isso no seu app.js do Backend
+app.get("/user/me", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    res.json(user);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao buscar dados do usuário" });
+  }
+});
 
 app.post("/auth/register", async (req, res) => {
   let { name, email, password, confirmpassword } = req.body || {};
