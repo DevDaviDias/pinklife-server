@@ -16,7 +16,17 @@ app.use(express.json());
 const User = require("./models/User.js");
 const PORT = process.env.PORT || 3001;
 
-// --- MIDDLEWARE DE AUTENTICAÇÃO ---
+const cloudinary = require('cloudinary').v2;
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() }); // 
+
+
 function checkToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -410,6 +420,74 @@ app.put("/progress/:modulo", checkToken, async (req, res) => {
     }
 });
 
+
+app.get("/diario", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(user.progress.diario || []);
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao buscar diário" });
+  }
+});
+
+// UPLOAD + CRIAR ENTRADA
+app.post("/diario/upload", checkToken, upload.single("foto"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ msg: "Nenhuma foto enviada" });
+
+    cloudinary.uploader.upload_stream(
+      { folder: `diario/${req.user.id}` },
+      async (error, response) => {
+        if (error) return res.status(500).json({ msg: "Erro ao enviar imagem", error });
+
+        const user = await User.findById(req.user.id);
+        if (!user.progress.diario) user.progress.diario = [];
+
+        const novaEntrada = {
+          id: crypto.randomUUID(),
+          data: new Date().toISOString(),
+          texto: req.body.texto || "",
+          humor: req.body.humor || "✨",
+          destaque: req.body.destaque || "",
+          fotoUrl: response.secure_url
+        };
+
+        user.progress.diario.unshift(novaEntrada);
+
+        // 🔥 Limite de 100 entradas
+        if (user.progress.diario.length > 100) {
+          user.progress.diario.pop();
+        }
+
+        user.markModified("progress");
+        await user.save();
+
+        res.status(201).json(novaEntrada);
+      }
+    ).end(req.file.buffer);
+
+  } catch (err) {
+    res.status(500).json({ msg: "Erro no upload", err });
+  }
+});
+
+// EXCLUIR ENTRADA
+app.delete("/diario/:id", checkToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    user.progress.diario = (user.progress.diario || []).filter(
+      (item) => item.id !== req.params.id
+    );
+
+    user.markModified("progress");
+    await user.save();
+
+    res.json({ msg: "Entrada do diário removida" });
+  } catch (e) {
+    res.status(500).json({ msg: "Erro ao excluir entrada" });
+  }
+});
 // --- CONEXÃO DB ---
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
