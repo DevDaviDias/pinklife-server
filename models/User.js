@@ -1,73 +1,104 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const UserSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true 
-  },
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true,
-    lowercase: true 
-  },
-  password: { 
-    type: String, 
-    required: true 
-  },
+// --- Exemplo de estrutura de um registro de saúde por dia ---
+// saude: {
+//   "2025-02-21": {
+//     data: "2025-02-21",
+//     menstruando: true,
+//     intensidadeFluxo: "moderado",   // "leve" | "moderado" | "intenso" | null
+//     notas: "...",
+//     sintomas: {
+//       dorDeCabeca: true,
+//       intensidadeDorDeCabeca: "forte",  // "leve" | "moderada" | "forte" | "insuportável" | null
+//       colica: true,
+//       intensidadeColica: "moderada",    // "leve" | "moderada" | "forte" | "insuportável" | null
+//       inchaco: false,
+//       seiosSensiveis: false,
+//       humorInstavel: true,
+//       tipoHumor: "irritada",  // "feliz" | "ansiosa" | "irritada" | "triste" | "sensível" | "normal" | null
+//     }
+//   }
+// }
 
-  // Progresso geral do usuário
-  progress: { 
-    type: mongoose.Schema.Types.Mixed, 
-    default: {
-      tarefas: [],           
-      habitos: [],           
-      treinos: [],
-      materias: [],
-      historicoEstudos: [],
-      financas: [],
+const UserSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
 
-      // ✅ Diário inicializado como array vazio
-      diario: [],
+    // Foto de perfil (URL do Cloudinary)
+    fotoPerfil: {
+      type: String,
+      default: null,
+    },
 
-      saude: {},
-
-      beleza: {              
-        skincareManha: { limpador: false, tonico: false, hidratante: false, protetor: false },
-        skincareNoite: { demaquilante: false, limpador: false, serum: false, hidratante: false },
-        cronogramaCapilar: "Hidratação"
-      },
-
-      alimentacao: {
-        refeicoes: { cafe: "", almoco: "", lanche: "", jantar: "" },
-        compras: []
-      },
-
-      viagens: {
-        mala: []
-      },
-
-      casa: {
+    progress: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {
         tarefas: [],
-        cardapio: { 
-          almoco: "", 
-          jantar: "" 
-        }
-      }
-    } 
-  }
+        habitos: [],
+        treinos: [],
+        materias: [],
+        historicoEstudos: [],
+        financas: [],
+        diario: [],
 
-}, { 
-  minimize: false,   // ✅ Importante: mantém objetos vazios como "saude: {}" no banco
-  timestamps: true   // Cria createdAt e updatedAt automaticamente
-});
+        // Saúde: objeto com chave = "yyyy-MM-dd"
+        // Cada dia tem: menstruando, intensidadeFluxo, sintomas (com intensidades e humor), notas
+        saude: {},
+
+        beleza: {
+          skincareManha: {
+            limpador: false,
+            tonico: false,
+            hidratante: false,
+            protetor: false,
+          },
+          skincareNoite: {
+            demaquilante: false,
+            limpador: false,
+            serum: false,
+            hidratante: false,
+          },
+          cronogramaCapilar: "Hidratação",
+        },
+        alimentacao: {
+          refeicoes: { cafe: "", almoco: "", lanche: "", jantar: "" },
+          compras: [],
+        },
+        viagens: {
+          mala: [],
+        },
+        casa: {
+          tarefas: [],
+          cardapio: { almoco: "", jantar: "" },
+        },
+      },
+    },
+  },
+  {
+    minimize: false, // Mantém objetos vazios como "saude: {}" no banco
+    timestamps: true, // Cria createdAt e updatedAt automaticamente
+  }
+);
 
 // Força o Mongoose a reconhecer mudanças em campos Mixed
-UserSchema.pre('save', function(next) {
-  this.markModified('progress');
+UserSchema.pre("save", function (next) {
+  this.markModified("progress");
   next();
 });
 
-const User = mongoose.models.User || mongoose.model('User', UserSchema);
+const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
 module.exports = User;
